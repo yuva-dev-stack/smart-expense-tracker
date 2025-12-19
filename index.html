@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Expense Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #e5e7eb;
+    --accent: #38bdf8;
+    --income: #22c55e;
+    --expense: #ef4444;
+  }
+
+  * {
+    box-sizing: border-box;
+    font-family: Inter, system-ui, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    background: linear-gradient(180deg, #020617, var(--bg));
+    color: var(--text);
+    padding: 20px;
+  }
+
+  .app {
+    max-width: 700px;
+    margin: auto;
+    background: var(--card);
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,.4);
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+  }
+
+  input, select {
+    background: #020617;
+    color: var(--text);
+  }
+
+  button {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 16px;
+  }
+
+  button:hover {
+    opacity: 0.9;
+  }
+
+  .balance {
+    text-align: center;
+    font-size: 22px;
+    margin: 20px 0;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #334155;
+  }
+
+  .income {
+    color: var(--income);
+  }
+
+  .expense {
+    color: var(--expense);
+  }
+
+  @media (max-width: 600px) {
+    body {
+      padding: 12px;
+    }
+  }
+
+  .ai {
+  margin: 20px 0;
+}
+
+.insight {
+  background: #020617;
+  border-left: 4px solid #facc15;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body>
+
+<div class="app">
+  <!-- your existing content goes here -->
+</div>
+
+<h1>Smart Expense Tracker</h1>
+
+<input id="description" placeholder="Description">
+<input id="amount" type="number" placeholder="Amount">
+<select id="category">
+  <option value="Food">Food</option>
+  <option value="Rent">Rent</option>
+  <option value="Transport">Transport</option>
+  <option value="Shopping">Shopping</option>
+  <option value="Entertainment">Entertainment</option>
+  <option value="Other">Other</option>
+</select>
+
+
+<select id="type">
+  <option value="income">Income</option>
+  <option value="expense">Expense</option>
+</select>
+
+<div class="ai">
+  <h3>AI Insights</h3>
+  <div id="insights"></div>
+</div>
+
+<button onclick="addTransaction()">Add Transaction</button>
+<canvas id="chart" height="200"></canvas>
+
+
+<div class="summary">
+  <p>Income: <span id="incomeTotal" class="income">$0</span></p>
+  <p>Expenses: <span id="expenseTotal" class="expense">$0</span></p>
+</div>
+
+<h3>Balance: <span id="balance">$0</span></h3>
+
+<ul id="list"></ul>
+
+<script>
+  let transactions = JSON.parse(localStorage.getItem("transactions")) || [];
+  let chart;
+
+  function addTransaction() {
+    const description = document.getElementById("description").value;
+    const amount = Number(document.getElementById("amount").value);
+    const type = document.getElementById("type").value;
+    const category = document.getElementById("category").value;
+
+    if (!description || !amount) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    transactions.push({ description, amount, type, category });
+    localStorage.setItem("transactions", JSON.stringify(transactions));
+    render();
+  }
+
+  function render() {
+    const list = document.getElementById("list");
+    const balanceEl = document.getElementById("balance");
+    const incomeTotalEl = document.getElementById("incomeTotal");
+    const expenseTotalEl = document.getElementById("expenseTotal");
+    const insightsEl = document.getElementById("insights");
+
+    list.innerHTML = "";
+    insightsEl.innerHTML = "";
+
+    let income = 0;
+    let expense = 0;
+    const categories = {};
+
+    transactions.forEach(t => {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span>${t.description} (${t.category})</span>
+        <span class="${t.type}">
+          ${t.type === "income" ? "+" : "-"}$${t.amount}
+        </span>
+      `;
+      list.appendChild(li);
+
+      if (t.type === "income") {
+        income += t.amount;
+      } else {
+        expense += t.amount;
+        categories[t.category] = (categories[t.category] || 0) + t.amount;
+      }
+    });
+
+    balanceEl.textContent = "$" + (income - expense);
+    incomeTotalEl.textContent = "$" + income;
+    expenseTotalEl.textContent = "$" + expense;
+
+    generateInsights(income, expense, categories);
+    updateChart(categories);
+  }
+
+  function generateInsights(income, expense, categories) {
+    const insightsEl = document.getElementById("insights");
+
+    if (expense > income) {
+      insightsEl.innerHTML += `
+        <div class="insight">⚠️ You are spending more than you earn. Consider reducing expenses.</div>
+      `;
+    }
+
+    const ratio = income ? (expense / income) : 0;
+    if (ratio > 0.7) {
+      insightsEl.innerHTML += `
+        <div class="insight">❗ Expenses exceed 70% of your income. Budgeting is recommended.</div>
+      `;
+    }
+
+    const topCategory = Object.entries(categories)
+      .sort((a, b) => b[1] - a[1])[0];
+
+    if (topCategory) {
+      insightsEl.innerHTML += `
+        <div class="insight">💡 Highest spending category: <strong>${topCategory[0]}</strong> ($${topCategory[1]}).</div>
+      `;
+    }
+
+    if (insightsEl.innerHTML === "") {
+      insightsEl.innerHTML = `
+        <div class="insight">✅ Your spending looks healthy. Keep it up!</div>
+      `;
+    }
+  }
+
+  function updateChart(categories) {
+    const ctx = document.getElementById("chart");
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: Object.keys(categories),
+        datasets: [{
+          data: Object.values(categories),
+          backgroundColor: "#ef4444"
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
+  render();
+</script>
+
+
+
+</body>
+</html>
